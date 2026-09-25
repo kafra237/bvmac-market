@@ -1,0 +1,80 @@
+:root{--platform-rail:236px;--platform-ink:#1F2A24;--platform-green:#2E5E4E;--platform-gold:#C9A23F;--platform-mobile-bar:72px}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{width:100%;height:100%;min-height:0;margin:0;overflow:hidden}
+/* Le cadre reste à la taille de l'écran ; seul le contenu défile. */
+.platform-shell{width:100%;height:100vh;height:100dvh;min-height:0;overflow:hidden}
+.platform-rail{background:var(--platform-ink);color:#E9EEEA;display:flex;flex-direction:column;position:fixed;z-index:80;left:0;top:0;bottom:0;width:var(--platform-rail);height:100vh;height:100dvh;padding:22px 0 0;overflow:hidden;overscroll-behavior:none}
+.platform-brand{padding:0 22px 20px;border-bottom:1px solid rgba(255,255,255,.12);flex:none}
+.platform-brand .sigle{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-weight:800;font-size:1.5rem;color:#fff}
+.platform-brand .sigle span{color:var(--platform-gold)}
+.platform-brand .sous{font-size:.68rem;color:#9FB0A6;letter-spacing:.14em;text-transform:uppercase;margin-top:3px}
+.platform-nav{padding:14px 12px;display:flex;flex-direction:column;gap:2px;overflow-x:hidden;overflow-y:auto;scrollbar-width:none;flex:1;min-height:0;min-width:0}
+.platform-nav::-webkit-scrollbar{display:none}
+.platform-nav :is(a,button){display:flex;align-items:center;gap:11px;width:100%;min-width:0;flex:0 0 auto;text-align:left;padding:10px 12px;border:0;border-radius:8px;background:transparent;color:#C4CFC8;font-family:inherit;font-weight:500;font-size:.92rem;line-height:1.25;text-decoration:none;cursor:pointer;transition:background .15s,color .15s,transform .14s ease}
+.platform-nav :is(a,button) span{min-width:0;overflow-wrap:anywhere}
+.platform-nav :is(a,button) svg{width:17px;height:17px;flex:none;opacity:.8}
+.platform-nav :is(a,button):hover{background:rgba(255,255,255,.07);color:#fff}
+.platform-nav :is(a,button):focus-visible{outline:2px solid var(--platform-gold);outline-offset:-2px}
+.platform-nav :is([aria-current="page"],[aria-current="true"]){background:var(--platform-green);color:#fff}
+.platform-main{margin-left:var(--platform-rail);width:calc(100% - var(--platform-rail));height:100%;min-height:0;min-width:0;display:flex;flex-direction:column;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;scroll-padding-top:100px;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch}
+.platform-main>*{flex-shrink:0}
+
+/* Les destinations restent accessibles sur les écrans de bureau peu hauts ; le rail défile si nécessaire. */
+@media(min-width:981px) and (max-height:760px){
+ .platform-rail{padding-top:12px}
+ .platform-brand{padding:0 20px 12px}
+ .platform-brand .sigle{font-size:1.35rem}
+ .platform-nav{padding:8px 12px}
+ .platform-nav :is(a,button){padding:7px 10px;font-size:.84rem}
+ #tick{padding:10px 18px 12px}
+}
+@media(min-width:981px) and (max-height:580px){
+ .platform-rail{padding-top:8px}
+ .platform-brand{padding:0 20px 8px}
+ .platform-brand .sigle{font-size:1.2rem}
+ .platform-brand .sous{font-size:.6rem;margin-top:1px}
+ .platform-nav{padding:4px 12px;gap:1px}
+ .platform-nav :is(a,button){padding:4px 10px;font-size:.82rem}
+ #tick{padding:6px 18px 8px}
+ #tick .val{font-size:1.05rem}
+ #tick .tick-spark-wrap{height:28px;margin-top:4px}
+ #tick .tick-spark-wrap canvas{height:28px!important}
+}
+
+/* Tablette : même barre horizontale sur toutes les pages. Le mode paysage
+   très peu haut utilise aussi cette disposition pour garder le menu lisible. */
+@media(max-width:980px), (max-height:440px){
+ .platform-shell{display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+ .platform-rail{position:relative;top:auto;bottom:auto;left:auto;right:auto;width:100%;height:auto;min-height:56px;flex:none;padding:8px 12px;flex-direction:row;align-items:center;gap:8px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+ .platform-brand{padding:2px 6px 2px 2px;border:0;flex:none}
+ .platform-brand .sigle{font-size:1.25rem}
+ .platform-brand .sous{display:none}
+ .platform-nav{width:auto;flex:1;flex-direction:row;padding:0;gap:4px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+ .platform-nav::-webkit-scrollbar{display:none}
+ .platform-nav :is(a,button){width:auto;min-width:max-content;flex:0 0 auto;padding:8px 12px;font-size:.86rem;white-space:nowrap}
+ .platform-nav :is(a,button) span{overflow:visible;overflow-wrap:normal}
+ .platform-main{margin-left:0;width:100%;height:auto;flex:1;min-height:0}
+ #tick{display:none}
+}
+/* Mobile : barre du bas fixe, libellés courts, onglets accessibles au toucher. */
+@media(max-width:640px){
+ .platform-shell{padding-bottom:calc(var(--platform-mobile-bar) + env(safe-area-inset-bottom))}
+ .platform-rail{position:fixed;left:0;right:0;top:auto;bottom:0;width:100%;height:calc(var(--platform-mobile-bar) + env(safe-area-inset-bottom));min-height:0;padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);flex-direction:row;align-items:stretch;box-shadow:0 -2px 16px rgba(0,0,0,.22)}
+ .platform-brand{display:none}
+ .platform-nav{width:100%;height:var(--platform-mobile-bar);flex:1 1 auto;flex-direction:row;padding:0;gap:0;justify-content:flex-start}
+ .platform-nav :is(a,button){min-width:64px;width:64px;flex:1 0 64px;height:var(--platform-mobile-bar);flex-direction:column;justify-content:center;gap:4px;padding:7px 4px 6px;font-size:.65rem;font-weight:650;border-radius:0;text-align:center;line-height:1.1;white-space:normal}
+ .platform-nav :is(a,button) svg{width:21px;height:21px}
+ .platform-nav .nav-txt{font-size:0}
+ .platform-nav .nav-txt::after{content:attr(data-court);font-size:.65rem}
+ .platform-nav :is([aria-current="page"],[aria-current="true"]){background:transparent;color:var(--platform-gold)}
+ .platform-main{padding-bottom:0;scroll-padding-top:145px}
+}
+@media (hover:hover) and (pointer:fine){.platform-nav :is(a,button):hover{transform:scale(1.018)}.platform-main button:not(:disabled){transition:transform .14s ease,background-color .15s,border-color .15s,color .15s;will-change:transform}.platform-main button:not(:disabled):hover{transform:scale(1.025)}}
+@media (prefers-reduced-motion:reduce){.platform-nav :is(a,button),.platform-main button{transition:none!important}}
+
+/* Shared language switch for private sub-pages served under /app. */
+.bvmac-lang-toggle{display:inline-flex;align-items:center;gap:2px;margin-left:auto;padding:3px;border:1px solid #d8ddd6;border-radius:9px;background:#fff;box-shadow:0 1px 2px rgba(31,42,36,.05)}
+.bvmac-lang-toggle button{min-width:42px;min-height:38px;border:0;border-radius:6px;background:transparent;color:#46544c;font:700 .76rem system-ui,-apple-system,"Segoe UI",sans-serif;cursor:pointer}
+.bvmac-lang-toggle button[aria-pressed="true"]{background:#2e5e4e;color:#fff}
+@media(max-width:640px){.bvmac-lang-toggle{position:sticky;top:8px;z-index:35;align-self:flex-end;margin:8px 10px 0 auto}.bvmac-lang-toggle button{min-height:44px}}

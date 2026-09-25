@@ -1,0 +1,15 @@
+const RELEASE='__BVMAC_RELEASE__';
+const CACHE='bvmac-public-v'+RELEASE;
+const PUBLIC=['/','/index.html','/landing.css?v='+RELEASE,'/landing-fixes.css?v='+RELEASE,'/landing.js?v='+RELEASE,'/pwa.js?v='+RELEASE,'/share.png','/favicon-32.png','/apple-touch-icon.png','/pwa-192.png','/pwa-512.png','/information.html','/launch.css?v='+RELEASE,'/information.js?v='+RELEASE];
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(PUBLIC)).then(()=>self.skipWaiting())));
+self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('bvmac-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()).then(()=>self.clients.matchAll({type:'window',includeUncontrolled:true})).then(clients=>Promise.all(clients.map(client=>{try{const u=new URL(client.url);if(u.origin===self.location.origin&&(u.pathname==='/app'||['/app.html','/feeds.html','/lab.html','/account.html'].includes(u.pathname)))return client.navigate(client.url)}catch{}return null})))));
+self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting()});
+self.addEventListener('fetch',event=>{
+  const req=event.request;if(req.method!=='GET')return;const url=new URL(req.url);if(url.origin!==location.origin)return;
+  const privateRoute=url.pathname==='/app'||url.pathname.startsWith('/app-')||['/auth.html','/demo.html','/stat'].includes(url.pathname)||url.pathname.startsWith('/api/');
+  if(privateRoute||url.pathname==='/version.json'){event.respondWith(fetch(req,{cache:'no-store'}));return}
+  if(req.mode==='navigate'){event.respondWith(fetch(req,{cache:'no-cache'}).then(res=>{if(res.ok&&['/','/index.html','/information.html'].includes(url.pathname)){const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy))}return res}).catch(()=>caches.match(req).then(r=>r||caches.match('/'))));return}
+  event.respondWith(caches.match(req).then(hit=>hit||fetch(req).then(res=>{if(res.ok&&['style','script','image','font'].includes(req.destination)){const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy))}return res})));
+});
+self.addEventListener('push',event=>{let data={};try{data=event.data?event.data.json():{}}catch{data={body:event.data?.text?.()||''}}const title=data.title||'BVMAC Market';const options={body:data.body||'New information is available.',icon:'/pwa-192.png',badge:'/favicon-32.png',tag:data.tag||undefined,data:{url:data.url||'/app',category:data.category||''},renotify:false};event.waitUntil(self.registration.showNotification(title,options))});
+self.addEventListener('notificationclick',event=>{event.notification.close();const target=new URL(event.notification.data?.url||'/app',self.location.origin).href;event.waitUntil((async()=>{const wins=await self.clients.matchAll({type:'window',includeUncontrolled:true});for(const client of wins){if('focus'in client){try{await client.navigate(target)}catch{}return client.focus()}}return self.clients.openWindow(target)})())});

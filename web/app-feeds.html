@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Feeds BVMAC — BVMAC Market</title>
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#23493D">
+  <link rel="manifest" href="/manifest.webmanifest?v=__BVMAC_RELEASE__">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="stylesheet" href="/shell.css?v=__BVMAC_RELEASE__">
+  <link rel="stylesheet" href="/workspace.css?v=__BVMAC_RELEASE__">
+  <style>
+    :root{--paper:#f2f4f1;--card:#fff;--ink:#17201c;--muted:#67726c;--green:#2e5e4e;--gold:#c9a23f;--line:#d9ded8}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px system-ui,-apple-system,"Segoe UI",sans-serif}.feed-main{max-width:1180px;margin:auto;padding:22px}.feed-head{display:flex;gap:14px;align-items:end;justify-content:space-between;margin-bottom:16px}.feed-head h1{margin:0;font-family:Georgia,serif;font-size:2rem;color:#213f35}.feed-head p{margin:4px 0 0;color:var(--muted)}.filters{display:flex;gap:8px;flex-wrap:wrap}.filters input,.filters select{padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:#fff}.feed-list{display:grid;gap:10px}.feed-item{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--green);border-radius:12px;padding:14px 16px}.feed-item.comm{border-left-color:var(--gold)}.feed-item .meta{display:flex;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:.78rem}.feed-item h2{font-size:1rem;margin:7px 0;line-height:1.4}.feed-item a{color:var(--green);font-weight:700;text-decoration:none}.badge{display:inline-block;padding:2px 7px;border-radius:999px;background:#e9f2ee;color:#23493d;font-size:.72rem;font-weight:800;text-transform:uppercase}.comm .badge{background:#fff5d8;color:#735a16}.status{font-size:.78rem;color:var(--muted);margin-top:16px}.empty{padding:28px;text-align:center;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:12px}@media(max-width:800px){.feed-main{padding:14px 10px 90px}.feed-head{display:block}.filters{margin-top:12px}.filters input{flex:1;min-width:180px}}
+  </style>
+  <script src="/i18n.js?v=__BVMAC_RELEASE__" defer></script><script src="/shell.js?v=__BVMAC_RELEASE__" defer></script>
+  <script src="/pwa.js?v=__BVMAC_RELEASE__" defer></script>
+<link rel="stylesheet" href="/experience.css?v=__BVMAC_RELEASE__"><script src="/notification-inbox.js?v=__BVMAC_RELEASE__" defer></script></head>
+<body data-app-view="feeds">
+<div class="platform-shell">
+  <aside class="platform-rail" aria-label="Navigation principale">
+    <div class="platform-brand"><div class="sigle">BVM<span>AC</span></div><div class="sous">Plateforme boursière</div></div>
+    <nav class="platform-nav" aria-label="Navigation principale">
+      <a href="/app?view=home" aria-label="Accueil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V21h13V10.5"/><path d="M9.5 21v-6h5v6"/></svg><span class="nav-txt" data-court="Accueil">Accueil</span></a>
+      <a href="/app?view=overview" aria-label="Aperçu du marché"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span class="nav-txt" data-court="Aperçu">Aperçu du marché</span></a>
+      <a href="/app?view=stories" aria-label="Histoires du marché"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v17H7.5A3.5 3.5 0 0 0 4 22z"/><path d="M20 5.5A3.5 3.5 0 0 0 16.5 2H13v17h3.5A3.5 3.5 0 0 1 20 22z"/></svg><span class="nav-txt" data-court="Récits">Histoires du marché</span></a>
+      <a href="/app?view=stocks" aria-label="Actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l5-6 4 3 6-8"/><path d="M21 21H3V3"/></svg><span class="nav-txt" data-court="Actions">Actions</span></a>
+      <a href="/app?view=funds" aria-label="OPCVM"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg><span class="nav-txt" data-court="OPCVM">OPCVM</span></a>
+      <a href="/app?view=index" aria-label="Indice BVMAC-AS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span class="nav-txt" data-court="Indice">Indice BVMAC-AS</span></a>
+      <a href="/app?view=radar" aria-label="Radar prédictif"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 12l5-5"/><circle cx="12" cy="12" r="2"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg><span class="nav-txt" data-court="Radar">Radar prédictif</span></a>
+      <a href="/app?view=watchlist" aria-label="Valeurs suivies"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg><span class="nav-txt" data-court="Suivi">Valeurs suivies</span></a>
+      <a href="/app?view=data" aria-label="Données"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v7c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7"/></svg><span class="nav-txt" data-court="Données">Données</span></a>
+      <a href="/app?view=feeds" aria-current="page" aria-label="Feeds BVMAC"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4v16"/><path d="M8 6h11l-3 4 3 4H8"/></svg><span class="nav-txt" data-court="Feeds">Feeds BVMAC</span></a>
+      <a href="/app?view=analysis" aria-label="Analyse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V9m5 10V5m5 14v-7m5 7V3"/></svg><span class="nav-txt" data-court="Analyse">Analyse</span></a>
+      <a href="/app?view=portfolios" aria-label="Mes portefeuilles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="nav-txt" data-court="Portefeuilles">Mes portefeuilles</span></a>
+    </nav>
+  </aside>
+  <main class="platform-main">
+    <div class="feed-main">
+      <div class="feed-head">
+        <div><h1>Feeds BVMAC</h1><p>Avis de la BVMAC et communiqués du marché détectés par les flux RSS officiels.</p></div>
+        <div class="filters"><select id="feedScope" aria-label="Publications à afficher"><option value="all">Tout le marché</option><option value="holdings">Actualités de mes titres</option></select><select id="type" aria-label="Type de publication"><option value="">Tous</option><option value="avis">Avis</option><option value="communique">Communiqués</option></select><input aria-label="Rechercher une publication" id="q" type="search" placeholder="Rechercher un titre…"></div>
+      </div>
+      <p class="status">Le filtre « mes titres » recherche leurs noms dans les titres des publications ; il ne couvre pas les mentions contenues uniquement dans les documents.</p><div id="list" class="feed-list"><div class="empty">Chargement…</div></div>
+      <div id="status" class="status"></div>
+    </div>
+  </main>
+</div>
+<script src="/feeds-app.js?v=__BVMAC_RELEASE__"></script>
+</body>
+</html>

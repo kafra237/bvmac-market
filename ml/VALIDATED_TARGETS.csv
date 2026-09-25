@@ -1,0 +1,11 @@
+target,status,horizon,mean_auc,min_auc,notes
+action_trade_5,retain,5 observed bulletins,0.775,0.694,Core liquidity model; calibrated; modest uplift over ticker-history baseline
+action_up_20,retain_with_confidence_gate,20 observed bulletins,0.717,0.628,Useful ranking signal; calibration and per-ticker reliability required
+opcvm_down_next,retain,next unique NAV,0.780,0.609,Rare-event downside risk; strong PR lift; fund-level confidence required
+action_trade_1,context_only,1 observed bulletin,0.697,0.631,Comparable to recent-activity baseline; not a flagship ML model
+action_trade_20,statistical_hybrid,20 observed bulletins,0.810,0.606,Ticker historical liquidity baseline often matches or beats ML
+action_move_5,reject_ml,5 observed bulletins,0.671,0.621,Ticker-specific baseline is stronger on average
+action_exact_return,reject,5/20/60 observed bulletins,,,Regressors underperform naive median/zero baselines
+opcvm_exact_return,reject,4/12 unique NAV publications,,,Regressors underperform naive baselines after deduplication
+bvmac_index_direction,reject,5/20 index observations,0.486,0.369,Unstable and below chance on multiple windows
+trade_window_multiclass,reject,1/2-5/6-20/>20 observed bulletins,0.665,0.560,Log-loss skill vs ticker baseline inconsistent

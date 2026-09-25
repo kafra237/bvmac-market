@@ -1,0 +1,113 @@
+{
+  "trade_1": {
+    "BANGE": {
+      "n_oos": 593,
+      "auc_oos": 0.7232718219097832,
+      "confidence": "high"
+    },
+    "BHC": {
+      "n_oos": 90,
+      "auc_oos": 0.4744543650793651,
+      "confidence": "low"
+    },
+    "REG": {
+      "n_oos": 604,
+      "auc_oos": 0.47155715571557155,
+      "confidence": "low"
+    },
+    "SAF": {
+      "n_oos": 604,
+      "auc_oos": 0.6782774378898169,
+      "confidence": "medium"
+    },
+    "SCGRE": {
+      "n_oos": 594,
+      "auc_oos": 0.6502517464461434,
+      "confidence": "medium"
+    },
+    "SEMC": {
+      "n_oos": 604,
+      "auc_oos": 0.5511437695516164,
+      "confidence": "low"
+    },
+    "SOCAP": {
+      "n_oos": 604,
+      "auc_oos": 0.6674814282290918,
+      "confidence": "medium"
+    }
+  },
+  "trade_5": {
+    "BANGE": {
+      "n_oos": 589,
+      "auc_oos": 0.6665370108439415,
+      "confidence": "medium"
+    },
+    "BHC": {
+      "n_oos": 86,
+      "auc_oos": 0.9176470588235294,
+      "confidence": "low"
+    },
+    "REG": {
+      "n_oos": 600,
+      "auc_oos": 0.5160416666666667,
+      "confidence": "low"
+    },
+    "SAF": {
+      "n_oos": 600,
+      "auc_oos": 0.6506309998921367,
+      "confidence": "medium"
+    },
+    "SCGRE": {
+      "n_oos": 590,
+      "auc_oos": 0.7129629629629629,
+      "confidence": "high"
+    },
+    "SEMC": {
+      "n_oos": 600,
+      "auc_oos": 0.6106216869885588,
+      "confidence": "medium"
+    },
+    "SOCAP": {
+      "n_oos": 600,
+      "auc_oos": 0.5624860853432282,
+      "confidence": "low"
+    }
+  },
+  "up_20": {
+    "BANGE": {
+      "n_oos": 574,
+      "auc_oos": 0.688258259901848,
+      "confidence": "high"
+    },
+    "BHC": {
+      "n_oos": 71,
+      "auc_oos": 0.590185676392573,
+      "confidence": "low"
+    },
+    "REG": {
+      "n_oos": 585,
+      "auc_oos": 0.6924865166449693,
+      "confidence": "high"
+    },
+    "SAF": {
+      "n_oos": 585,
+      "auc_oos": 0.49736126155628885,
+      "confidence": "low"
+    },
+    "SCGRE": {
+      "n_oos": 575,
+      "auc_oos": 0.7349977937932048,
+      "confidence": "high"
+    },
+    "SEMC": {
+      "n_oos": 585,
+      "auc_oos": 0.5287619671058015,
+      "confidence": "low"
+    },
+    "SOCAP": {
+      "n_oos": 585,
+      "auc_oos": 0.670808362369338,
+      "confidence": "medium"
+    }
+  }
+}

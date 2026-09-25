@@ -1,0 +1,21 @@
+name: Feature request
+about: Propose an improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What need does this solve?
+      description: Start with the user or maintenance problem rather than the implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed approach
+      description: Explain the idea, alternatives or constraints if you already have them.
+  - type: textarea
+    id: impact
+    attributes:
+      label: Data, security or compatibility impact
+      description: Mention migrations, API changes, privacy concerns or model implications if relevant.

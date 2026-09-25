@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: bvmac
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d bvmac"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      BVMAC_TEST_POSTGRES_DSN: postgresql://postgres:postgres@127.0.0.1:5432/bvmac
+      BVMAC_DB_DSN: postgresql://postgres:postgres@127.0.0.1:5432/bvmac
+      BVMAC_AUTH_PEPPER: ci-auth-pepper
+      BVMAC_LOOKUP_PEPPER: ci-lookup-pepper
+      BVMAC_WEBSTATS_HMAC_SECRET: ci-webstats-pepper
+      BVMAC_PII_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client nginx
+
+      - name: Prepare PostgreSQL schemas
+        run: |
+          PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d bvmac -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='bvmacapi') THEN CREATE ROLE bvmacapi LOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='bvmacimport') THEN CREATE ROLE bvmacimport LOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='bvmacstats') THEN CREATE ROLE bvmacstats LOGIN; END IF; END \$\$;"
+          PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d bvmac -v ON_ERROR_STOP=1 -f database/schema.sql
+          sed -e 's/__API_ROLE__/bvmacapi/g' -e 's/__STATS_ROLE__/bvmacstats/g' database/application.sql | PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d bvmac -v ON_ERROR_STOP=1
+
+      - name: Unit and integration tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Shell syntax
+        run: bash -n deploy.sh checking.sh
+
+      - name: Python syntax
+        run: python -m compileall -q backend database ml pipeline operations
+
+      - name: JavaScript syntax
+        run: |
+          for f in web/*.js; do
+            case "$f" in web/chart.umd.min.js|web/chartjs-plugin-zoom.min.js) continue;; esac
+            node --check "$f"
+          done
+
+      - name: Responsive and bilingual browser QA
+        run: |
+          python tests/qa_radar_responsive.py
+          python tests/qa_layout_i18n.py

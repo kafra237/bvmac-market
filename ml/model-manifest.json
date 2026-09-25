@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",
+  "data_through": "2026-09-23",
+  "models": [
+    "trade_5",
+    "up_20",
+    "trade_1_context",
+    "opcvm_down_next"
+  ],
+  "core_models": [
+    "trade_5",
+    "up_20",
+    "opcvm_down_next"
+  ],
+  "rejected": [
+    "exact_action_returns",
+    "exact_opcvm_returns",
+    "index_5_20_direction",
+    "action_down_20_60",
+    "per_ticker_standalone",
+    "trade_window_multiclass"
+  ]
+}

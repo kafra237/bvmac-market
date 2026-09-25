@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>BVMAC — Plateforme boursière</title>
+<!-- Graphiques servis localement : plus rapides sur une connexion lente et
+     indépendants d'un CDN. Le classeur Excel reste privé sur le serveur. -->
+<script src="./chart.umd.min.js"></script>
+<script src="./chartjs-plugin-zoom.min.js"></script>
+<style>
+/* ════════════════ TOKENS ════════════════ */
+:root{
+  --encre:#1F2A24; --encre-2:#46544C;
+  --papier:#F2F4F1; --carte:#FBFCFA;
+  --billet:#2E5E4E; --billet-fonce:#23493D;
+  --or:#C9A23F; --or-pale:#EFE4C3;
+  --hausse:#1E7A4C; --baisse:#B3422E; --ligne:#D8DDD6;
+  --r:10px;
+  --f-disp:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-corps:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px}
+body{font-family:var(--f-corps);background:var(--papier);color:var(--encre);min-height:100vh}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--or);outline-offset:2px;border-radius:4px}
+@media (hover:hover) and (pointer:fine){
+  button:not(:disabled){will-change:transform}
+  button:not(:disabled):hover{transform:scale(1.025)}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* La navigation et le cadre d'écran sont communs à toutes les pages (shell.css). */
+#tick{margin-top:0;flex:0 0 auto;border-top:1px solid rgba(255,255,255,.12);padding:14px 18px 16px;background:#19241f;box-shadow:0 -8px 18px rgba(0,0,0,.08)}
+#tick .lbl{font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:#9FB0A6}
+#tick .val{font-family:var(--f-mono);font-weight:700;font-size:1.24rem;line-height:1.15;margin-top:4px;white-space:nowrap;overflow:visible}
+#tick .var{font-family:var(--f-mono);font-size:.82rem;margin-top:2px}
+#tick .tick-spark-wrap{position:relative;width:100%;height:52px;margin-top:8px;overflow:visible;min-width:0}
+#tick .tick-spark-wrap canvas{position:absolute;inset:0;width:100%!important;height:52px!important;opacity:1}
+
+/* ── Topbar ── */
+#topbar{display:flex;flex:none;align-items:center;gap:16px;padding:12px 28px;background:var(--carte);
+  border-bottom:1px solid var(--ligne);position:sticky;top:0;z-index:30}
+#seance{display:flex;align-items:center;gap:8px}
+#seance .lbl{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--encre-2)}
+#seance button{width:30px;height:30px;border:1px solid var(--ligne);border-radius:7px;
+  display:grid;place-items:center;background:#fff;transition:border-color .15s}
+#seance button:hover:not(:disabled){border-color:var(--billet)}
+#seance button:disabled{opacity:.35;cursor:default}
+#seance select{font:600 .92rem var(--f-mono);padding:6px 10px;border:1px solid var(--ligne);
+  border-radius:7px;background:#fff;color:var(--encre)}
+/* Recherche globale */
+#recherche-g{position:relative;flex:1;max-width:340px}
+#recherche-g input{width:100%;font:500 .88rem var(--f-corps);padding:8px 12px 8px 32px;
+  border:1px solid var(--ligne);border-radius:8px;background:#fff;color:var(--encre)}
+#recherche-g svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  width:14px;height:14px;color:var(--encre-2);pointer-events:none}
+#resultats-g{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;
+  border:1px solid var(--ligne);border-radius:10px;box-shadow:0 10px 28px rgba(31,42,36,.14);
+  max-height:320px;overflow:auto;display:none;z-index:50}
+#resultats-g.ouvert{display:block}
+#resultats-g button{display:flex;flex-direction:column;gap:1px;width:100%;text-align:left;
+  padding:9px 14px;border-bottom:1px solid #EEF1ED}
+#resultats-g button:last-child{border-bottom:none}
+#resultats-g button:hover,#resultats-g button.actif{background:#EFF4F0}
+#resultats-g b{font-size:.88rem}
+#resultats-g span{font-size:.74rem;color:var(--encre-2)}
+#etat-fichier{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:.8rem;color:var(--encre-2)}
+#etat-fichier .puce{width:8px;height:8px;border-radius:50%;background:var(--baisse);flex:none}
+#etat-fichier.ok .puce{background:var(--hausse)}
+#btn-actualiser{display:inline-flex;align-items:center;gap:7px;font-size:.82rem;font-weight:600;
+  color:var(--billet);padding:7px 13px;border:1px solid var(--ligne);border-radius:8px;background:#fff;
+  transition:border-color .15s}
+#btn-actualiser:hover{border-color:var(--billet)}
+#btn-actualiser svg{width:13px;height:13px}
+#btn-actualiser.tourne svg{animation:rot .7s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+#contenu{flex:none;padding:26px 28px 60px;max-width:1600px;width:100%;min-width:0;margin:0 auto}
+
+/* ════════════════ ÉCRAN D'AMORÇAGE ════════════════ */
+#amorce{max-width:660px;margin:7vh auto 0;text-align:center}
+#amorce .rosace{width:190px;height:190px;margin:0 auto 6px}
+#amorce h1{font-family:var(--f-disp);font-weight:800;font-size:2rem;line-height:1.14}
+#amorce p{color:var(--encre-2);margin-top:10px;line-height:1.6}
+#amorce .panneau{margin-top:24px;background:var(--carte);border:1px solid var(--ligne);
+  border-radius:14px;padding:26px 28px;text-align:left}
+#amorce .panneau h3{font-family:var(--f-disp);font-size:1.02rem;margin-bottom:10px}
+#amorce code{font:500 .84rem var(--f-mono);background:#ECEFEA;padding:2px 7px;border-radius:5px}
+#amorce pre{font:500 .8rem var(--f-mono);background:var(--encre);color:#D9E4DC;
+  padding:14px 16px;border-radius:9px;margin-top:10px;overflow:auto}
+#amorce .btn-p{display:inline-flex;margin-top:16px;font-weight:600;color:#fff;
+  background:var(--billet);padding:10px 20px;border-radius:9px}
+#amorce .btn-p:hover{background:var(--billet-fonce)}
+#amorce .spin{width:34px;height:34px;border:3px solid var(--ligne);border-top-color:var(--billet);
+  border-radius:50%;margin:24px auto 0;animation:rot .8s linear infinite}
+
+/* ════════════════ COMPOSANTS ════════════════ */
+.vue{display:none}
+.vue.active{display:block;animation:app .22s ease}
+@keyframes app{from{opacity:0;transform:translateY(5px)}to{opacity:1}}
+h2.titre-vue{font-family:var(--f-disp);font-weight:700;font-size:1.45rem;margin-bottom:4px}
+.sous-vue{color:var(--encre-2);font-size:.9rem;margin-bottom:22px}
+
+#hero{position:relative;overflow:hidden;background:var(--billet-fonce);color:#F2F6F1;
+  border-radius:14px;padding:30px 34px;display:grid;grid-template-columns:auto 1fr;gap:34px;align-items:center}
+#hero .guill{position:absolute;right:-60px;top:50%;transform:translateY(-50%);width:420px;height:420px;
+  opacity:.16;pointer-events:none}
+#hero .eti{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:#BBD0C3}
+#hero .ind{font-family:var(--f-mono);font-weight:600;font-size:3.4rem;line-height:1;margin-top:6px}
+#hero .ind small{font-size:1.2rem;color:var(--or)}
+#hero .varj{font-family:var(--f-mono);font-size:1.05rem;margin-top:8px}
+#hero .graphe{position:relative;height:120px;min-width:0;z-index:1}
+#hero.sans-indice{grid-template-columns:1fr}
+#hero .vide-indice{color:#BBD0C3;font-size:.92rem;margin-top:10px}
+
+.grille-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:16px}
+.stat{background:var(--carte);border:1px solid var(--ligne);border-radius:var(--r);padding:15px 17px}
+.stat .l{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--encre-2)}
+.stat .v{font-family:var(--f-mono);font-weight:600;font-size:1.22rem;margin-top:6px}
+.stat .v small{font-size:.78rem;font-weight:400;color:var(--encre-2)}
+
+.bloc{background:var(--carte);border:1px solid var(--ligne);border-radius:var(--r);margin-top:22px}
+.bloc>header{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 18px;border-bottom:1px solid var(--ligne)}
+.bloc>header h3{font-family:var(--f-disp);font-weight:700;font-size:1.04rem}
+.bloc>header .note{font-size:.78rem;color:var(--encre-2)}
+.bloc .corps{padding:8px 6px}
+.bloc .corps.plein{padding:18px}
+
+/* Boutons de période / segments */
+.segments{display:inline-flex;gap:0;border:1px solid var(--ligne);border-radius:8px;
+  overflow:hidden;margin-left:auto}
+.segments button{font-size:.76rem;font-weight:600;padding:6px 12px;color:var(--encre-2);
+  border-right:1px solid var(--ligne);background:#fff;transition:background .12s}
+.segments button:last-child{border-right:none}
+.segments button:hover{background:#EFF4F0}
+.segments button[aria-pressed="true"]{background:var(--billet);color:#fff}
+/* Contrôles d'échelle temporelle (granularité + période) groupés et étiquetés */
+.ctrl-temps{display:flex;flex-wrap:wrap;align-items:center;gap:6px 9px;margin-left:auto}
+.ctrl-temps .segments{margin-left:0}
+.ctrl-lbl{font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--encre-2)}
+.graphe-bloc{touch-action:pan-y}
+.graphe-hint{font-size:.7rem;color:var(--encre-2);margin:8px 4px 0;display:flex;align-items:center;gap:6px}
+.graphe-hint svg{width:13px;height:13px;flex:none;opacity:.7}
+@media (max-width:640px){.ctrl-temps{width:100%;margin-left:0}}
+/* Puces de comparaison */
+.puces{display:flex;flex-wrap:wrap;gap:8px}
+.puces button{display:inline-flex;align-items:center;gap:7px;font-size:.8rem;font-weight:600;
+  padding:6px 13px;border:1.5px solid var(--ligne);border-radius:99px;background:#fff;
+  color:var(--encre-2);transition:all .13s}
+.puces button .pt{width:9px;height:9px;border-radius:50%;background:currentColor;opacity:.45}
+.puces button[aria-pressed="true"]{border-color:var(--c,var(--billet));color:var(--c,var(--billet));background:#fff}
+.puces button[aria-pressed="true"] .pt{background:var(--c,var(--billet));opacity:1}
+
+/* Tables triables */
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+/* Les grands tableaux restent contenus dans la page à toutes les tailles d’écran.
+   Le scroll appartient au tableau, jamais à la page entière. */
+.market-table-scroll{width:100%;max-width:100%;min-width:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-gutter:stable;padding-bottom:3px}
+.market-table-scroll table{width:max-content;min-width:100%;max-width:none}
+#table-actions table{min-width:1080px}
+#table-opcvm table{min-width:980px}
+#table-screener table,#table-apercu table,#opcvm-apercu table,#table-veille table{min-width:820px}
+.market-table-scroll::-webkit-scrollbar{height:10px}
+.market-table-scroll::-webkit-scrollbar-track{background:#E7EBE6;border-radius:99px}
+.market-table-scroll::-webkit-scrollbar-thumb{background:#A7B3AB;border-radius:99px;border:2px solid #E7EBE6}
+.market-table-scroll::-webkit-scrollbar-thumb:hover{background:#7F9186}
+.bloc,.bloc .corps,.vue{min-width:0;max-width:100%}
+.bloc .corps.market-table-scroll{overflow-x:auto;overflow-y:hidden}
+th{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--encre-2);
+   text-align:right;padding:9px 12px;border-bottom:1px solid var(--ligne);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th.tri{cursor:pointer;user-select:none}
+th.tri:hover{color:var(--billet)}
+th.tri::after{content:"⇅";margin-left:5px;opacity:.4;font-size:.72rem}
+th.tri[data-dir="asc"]::after{content:"▲";opacity:1;color:var(--billet)}
+th.tri[data-dir="desc"]::after{content:"▼";opacity:1;color:var(--billet)}
+td{padding:10px 12px;text-align:right;border-bottom:1px solid #E9EDE8;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.num{font-family:var(--f-mono);font-size:.86rem}
+tr.cliquable{cursor:pointer;transition:background .12s}
+tr.cliquable:hover{background:#EFF4F0}
+.tick-nom{display:flex;flex-direction:column;gap:1px}
+.tick-nom b{font-weight:600}
+.tick-nom span{font-size:.74rem;color:var(--encre-2)}
+.pos{color:var(--hausse)}.neg{color:var(--baisse)}.neutre{color:var(--encre-2)}
+.pastille{display:inline-block;font-size:.7rem;font-weight:600;padding:3px 9px;border-radius:99px}
+.pastille.statut-PEq{background:#E2EFE7;color:var(--hausse)}
+.pastille.statut-NC{background:#ECEDEA;color:var(--encre-2)}
+.pastille.statut-S{background:#F6E4DE;color:var(--baisse)}
+.cat{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:7px;
+  font:600 .74rem var(--f-mono);background:var(--or-pale);color:#7A5E18}
+.vide{padding:34px;text-align:center;color:var(--encre-2);font-size:.9rem}
+
+.retour{display:inline-flex;align-items:center;gap:7px;font-weight:600;font-size:.86rem;
+  color:var(--billet);margin-bottom:16px;padding:7px 12px;border:1px solid var(--ligne);
+  border-radius:8px;background:var(--carte)}
+.retour:hover{border-color:var(--billet)}
+.entete-fiche{display:flex;flex-wrap:wrap;align-items:baseline;gap:14px}
+.entete-fiche h2{font-family:var(--f-disp);font-weight:800;font-size:1.7rem}
+.entete-fiche .isin{font-family:var(--f-mono);font-size:.8rem;color:var(--encre-2)}
+.entete-fiche .secteur{font-size:.78rem;background:var(--or-pale);color:#7A5E18;
+  padding:4px 11px;border-radius:99px;font-weight:600}
+.cours-fiche{display:flex;flex-wrap:wrap;align-items:baseline;gap:14px;margin-top:10px}
+.cours-fiche .c{font-family:var(--f-mono);font-weight:600;font-size:2.2rem}
+.cours-fiche .v{font-family:var(--f-mono);font-size:1.05rem}
+.graphe-bloc{position:relative;height:300px}
+.duo{display:grid;grid-template-columns:2fr 1fr;gap:22px;align-items:start}
+@media (max-width:980px){.duo{grid-template-columns:1fr}}
+.dl{display:grid;grid-template-columns:1fr auto;gap:9px 16px;font-size:.88rem;padding:4px 0}
+.dl dt{color:var(--encre-2)}
+.dl dd{font-family:var(--f-mono);font-size:.84rem;text-align:right}
+
+.filtres{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.filtres select,.filtres input{font:500 .88rem var(--f-corps);padding:8px 12px;
+  border:1px solid var(--ligne);border-radius:8px;background:var(--carte);color:var(--encre)}
+.filtres input{min-width:230px}
+.sev{font:600 .7rem var(--f-mono);padding:3px 9px;border-radius:6px}
+.sev.ERROR{background:#F6DEDA;color:var(--baisse)}
+.sev.WARNING{background:#F4ECD4;color:#8A6A14}
+.sev.INFO{background:#E4EBE6;color:var(--encre-2)}
+
+/* ════════════════ ACCUEIL ════════════════ */
+.accueil-hero{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:22px;align-items:stretch}
+.accueil-copy{background:linear-gradient(135deg,var(--billet-fonce),var(--billet));color:#F4F7F4;border-radius:16px;padding:42px 42px 38px;position:relative;overflow:hidden}
+.accueil-copy::after{content:"";position:absolute;width:280px;height:280px;border:1px solid rgba(255,255,255,.12);border-radius:50%;right:-120px;top:-100px;box-shadow:0 0 0 45px rgba(255,255,255,.025),0 0 0 90px rgba(255,255,255,.018)}
+.accueil-kicker{display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:#D8C170;font-weight:800;margin-bottom:14px}
+.accueil-copy h1{font-family:var(--f-disp);font-size:clamp(2rem,4vw,3.45rem);line-height:1.02;max-width:790px;position:relative;z-index:1}
+.accueil-copy p{color:#D7E1DB;max-width:760px;font-size:1.02rem;line-height:1.65;margin-top:18px;position:relative;z-index:1}
+.accueil-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px;position:relative;z-index:1}
+.accueil-btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 17px;border-radius:9px;border:1px solid rgba(255,255,255,.35);color:#fff;text-decoration:none;font-weight:750;background:rgba(255,255,255,.07)}
+.accueil-btn.primaire{background:var(--or);border-color:var(--or);color:#2d2715}.accueil-btn.discret{border-color:transparent;color:#D7E1DB}.accueil-btn:hover{filter:brightness(1.07)}
+.accueil-panel{background:var(--carte);border:1px solid var(--ligne);border-radius:16px;padding:24px}.accueil-panel>strong{font-family:var(--f-disp);font-size:1.15rem}
+.accueil-features{display:grid;gap:10px;margin-top:16px}.accueil-features div{padding:12px;border-radius:10px;background:#F0F3EF;border:1px solid #E5E9E4}.accueil-features b,.accueil-features span{display:block}.accueil-features b{color:var(--billet)}.accueil-features span{font-size:.82rem;color:var(--encre-2);line-height:1.45;margin-top:3px}
+.accueil-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}.accueil-grid article{background:var(--carte);border:1px solid var(--ligne);border-radius:12px;padding:20px}.accueil-grid article>span{font:700 .75rem var(--f-mono);color:var(--or)}.accueil-grid h2{font-size:1rem;margin-top:9px}.accueil-grid p{font-size:.85rem;color:var(--encre-2);line-height:1.55;margin-top:7px}.accueil-note{font-size:.78rem;color:var(--encre-2);margin-top:18px}
+@media(max-width:900px){.accueil-hero{grid-template-columns:1fr}.accueil-grid{grid-template-columns:1fr}.accueil-copy{padding:30px 26px}}
+
+/* Grand écran : on utilise davantage l’espace sans étirer indéfiniment les cartes. */
+@media (min-width:1440px){
+  #contenu{max-width:1540px;padding-left:36px;padding-right:36px}
+  .grille-stats{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+}
+@media (min-width:1900px){
+  #contenu{max-width:1720px;padding-left:44px;padding-right:44px}
+}
+
+/* ════════════════ RESPONSIVE ════════════════ */
+
+/* ── Tablette (≤ 980px) : rail compact en barre horizontale ── */
+@media (max-width:980px){
+  #tick{display:none}
+  #contenu{padding:18px 16px 50px}
+  .duo{grid-template-columns:1fr}
+  #hero{grid-template-columns:1fr;padding:22px}
+  #hero .graphe{height:90px}
+  #topbar{flex-wrap:wrap;padding:10px 16px;gap:10px}
+  #recherche-g{max-width:none;order:9;flex-basis:100%}
+}
+
+/* ── Mobile (≤ 640px) : navigation fixe en bas, plein écran ── */
+@media (max-width:640px){
+  html{font-size:14px}
+
+  /* Topbar collante en haut, recherche prioritaire */
+  #topbar{position:sticky;top:0;z-index:50;padding:9px 14px;gap:8px;
+          flex-wrap:wrap;align-items:center}
+  #seance{order:1}
+  #seance .lbl{display:none}
+  #seance select{font-size:.86rem;padding:6px 8px}
+  #etat-fichier{order:3;flex-basis:100%;margin-left:0;justify-content:space-between;
+                font-size:.72rem;border-top:1px solid var(--ligne);padding-top:7px}
+  #recherche-g{order:2;flex:1;max-width:none}
+  #btn-actualiser span,#btn-actualiser{font-size:.74rem;padding:6px 9px}
+
+  /* Contenu : padding réduit + place pour la barre du bas */
+  #contenu{padding:16px 13px calc(72px + env(safe-area-inset-bottom))}
+  #amorce{margin-top:5vh}
+  #amorce h1{font-size:1.5rem}
+  #amorce .panneau{padding:18px 16px}
+  #amorce pre{font-size:.72rem}
+
+  h2.titre-vue{font-size:1.25rem}
+  .sous-vue{font-size:.84rem;margin-bottom:16px}
+
+  /* Héro indice */
+  #hero{padding:20px 18px;gap:18px}
+  #hero .ind{font-size:2.5rem}
+  #hero .guill{width:300px;right:-90px}
+  #hero .graphe{height:80px}
+
+  /* Stats : 2 colonnes au lieu d'1 longue file */
+  .grille-stats{grid-template-columns:1fr 1fr;gap:10px}
+  .stat{padding:12px 13px}
+  .stat .v{font-size:1.05rem}
+
+  /* Blocs et entêtes empilés */
+  .bloc{margin-top:16px;border-radius:9px}
+  .bloc>header{flex-wrap:wrap;gap:8px;padding:13px 14px}
+  .bloc>header h3{font-size:.98rem}
+  .bloc .corps.plein{padding:14px}
+  .segments{margin-left:0;width:100%;justify-content:stretch}
+  .segments button{flex:1;text-align:center}
+
+  /* Tables : le conteneur dédié porte le scroll, la page ne déborde jamais. */
+  .market-table-scroll{margin:0;max-width:100%}
+  .market-table-scroll table{min-width:700px}
+  #table-actions table{min-width:980px}
+  #table-opcvm table{min-width:900px}
+  th,td{padding:9px 10px;font-size:.82rem}
+  td.num{font-size:.8rem}
+  .tick-nom b{font-size:.86rem}
+  .tick-nom span{font-size:.68rem}
+
+  /* Fiches société / fonds */
+  .entete-fiche{gap:8px}
+  .entete-fiche h2{font-size:1.35rem;flex-basis:100%}
+  .cours-fiche{gap:10px}
+  .cours-fiche .c{font-size:1.7rem}
+  .duo{gap:14px}
+  .graphe-bloc{height:240px}
+  .dl{grid-template-columns:1fr auto;font-size:.84rem}
+
+  /* Comparaison : graphe un peu plus court */
+  #comp-graphe{}
+  .puces{gap:6px}
+  .puces button{padding:5px 11px;font-size:.76rem}
+
+  /* Filtres OPCVM empilés pleine largeur */
+  .filtres{gap:8px}
+  .filtres input,.filtres select{flex:1;min-width:0;width:100%;font-size:.84rem}
+  #f-recherche{flex-basis:100%}
+
+  /* Recherche globale : résultats en plein largeur sous la topbar */
+  #resultats-g{max-height:60vh}
+
+  /* Qualité : masquer la colonne Contrôle (gardée au scroll), détail en dessous */
+  #filtres-qualite{gap:6px}
+  #filtres-qualite button{font-size:.72rem;padding:5px 10px}
+}
+
+/* ── Très petit (≤ 380px) ── */
+@media (max-width:380px){
+  #hero .ind{font-size:2.1rem}
+  .grille-stats{grid-template-columns:1fr 1fr}
+}
+
+/* ════════════════ EXTENSIONS — MÊME LANGAGE VISUEL ════════════════ */
+#langue{display:inline-flex;border:1px solid var(--ligne);border-radius:8px;overflow:hidden;background:#fff;flex:none}
+#langue button{font:600 .72rem var(--f-mono);padding:7px 9px;color:var(--encre-2)}
+#langue button[aria-pressed="true"]{background:var(--billet);color:#fff}
+.grille-marche{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:22px}
+.grille-marche .bloc{margin-top:0;min-width:0}
+.liste-mouvements{display:grid;gap:0}
+.mouvement{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;border-bottom:1px solid #E9EDE8;cursor:pointer}
+.mouvement:last-child{border-bottom:none}.mouvement:hover{background:#EFF4F0}
+.mouvement b{font-weight:600}.mouvement small{display:block;color:var(--encre-2);margin-top:2px}
+.mouvement .mv-val{font:600 .86rem var(--f-mono)}
+.largeur-marche{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.largeur-marche .barre{height:8px;flex:1;min-width:100px;background:#E8ECE7;border-radius:99px;overflow:hidden;display:flex}
+.largeur-marche .barre .h{background:var(--hausse)}.largeur-marche .barre .b{background:var(--baisse)}
+.carte-chaleur{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:7px;padding:10px}
+.case-chaleur{min-height:70px;border-radius:8px;padding:10px;color:#fff;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;transition:transform .12s}
+.case-chaleur:hover{transform:translateY(-2px)}
+.case-chaleur b{font:700 .86rem var(--f-disp)}.case-chaleur span{font:600 .82rem var(--f-mono)}
+.filtres-screener{display:grid;grid-template-columns:2fr repeat(4,minmax(120px,1fr));gap:9px;padding:14px 18px;border-bottom:1px solid var(--ligne)}
+.filtres-screener input,.filtres-screener select{min-width:0;width:100%;padding:8px 10px;border:1px solid var(--ligne);border-radius:8px;background:#fff;color:var(--encre);font:500 .82rem var(--f-corps)}
+.score{display:inline-grid;place-items:center;min-width:44px;padding:4px 8px;border-radius:99px;font:600 .78rem var(--f-mono);background:var(--or-pale);color:#715715}
+.score.bon{background:#E2EFE7;color:var(--hausse)}.score.faible{background:#F6E4DE;color:var(--baisse)}.score.indispo{background:#ECEFEC;color:var(--encre-2)}
+.etoile{font-size:1.15rem;color:#A9B1AB;padding:3px}.etoile.active{color:var(--or)}
+.grille-score{display:grid;grid-template-columns:180px minmax(0,1fr);gap:18px;align-items:center}
+.score-total{width:142px;height:142px;border-radius:50%;display:grid;place-items:center;margin:auto;background:conic-gradient(var(--billet) calc(var(--score)*1%),#E2E7E1 0);position:relative}
+.score-total::before{content:"";position:absolute;inset:12px;border-radius:50%;background:var(--carte)}
+.score-total.indispo{background:#E2E7E1}.score-total.indispo strong{font-size:1.45rem}.score-manquants{margin-top:10px;font-size:.76rem;line-height:1.45;color:var(--encre-2)}
+.score-total strong{position:relative;font:800 2rem var(--f-disp)}.score-total small{position:relative;color:var(--encre-2)}
+.score-lignes{display:grid;gap:10px}.score-ligne{display:grid;grid-template-columns:110px 1fr 42px;gap:9px;align-items:center;font-size:.8rem}
+.score-ligne .rail-score{height:7px;background:#E2E7E1;border-radius:99px;overflow:hidden}.score-ligne .rail-score i{display:block;height:100%;background:var(--billet);border-radius:99px}
+.explication{padding:14px 16px;background:#F4F6F3;border-left:3px solid var(--or);border-radius:0 8px 8px 0;color:var(--encre-2);font-size:.84rem;line-height:1.55}
+.liste-vide{padding:40px 22px;text-align:center}.liste-vide h3{font-family:var(--f-disp);margin-bottom:7px}.liste-vide p{color:var(--encre-2);line-height:1.55}
+.bouton-secondaire{display:inline-flex;align-items:center;gap:7px;margin-top:12px;padding:8px 13px;border:1px solid var(--ligne);border-radius:8px;background:#fff;color:var(--billet);font-weight:600;font-size:.82rem}
+.bouton-secondaire:hover{border-color:var(--billet)}
+.couverture{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px}
+.couverture .stat{margin:0}
+.glossaire{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 22px}
+.glossaire div{padding:11px 0;border-bottom:1px solid #E9EDE8}.glossaire dt{font-weight:600}.glossaire dd{color:var(--encre-2);font-size:.82rem;margin-top:3px;line-height:1.45}
+
+/* Récits de marché : mêmes couleurs, typographies et rayons que l'application */
+.recit-hero{position:relative;overflow:hidden;background:var(--billet-fonce);color:#F2F6F1;
+  border-radius:14px;padding:30px 34px;min-height:220px;display:flex;align-items:flex-end}
+.recit-hero .guill{position:absolute;right:-72px;top:50%;transform:translateY(-50%);
+  width:390px;height:390px;opacity:.14;pointer-events:none}
+.recit-hero-contenu{position:relative;z-index:1;max-width:760px}
+.recit-kicker{font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:#BBD0C3}
+.recit-chiffre{font:800 clamp(2.5rem,7vw,4.6rem)/1 var(--f-disp);color:var(--or);margin-top:9px}
+.recit-accroche{font:700 1.17rem/1.4 var(--f-disp);margin-top:10px;max-width:690px}
+.recit-source{font-size:.72rem;color:#BBD0C3;margin-top:13px}
+.recit-controles{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  margin:0 0 16px;padding:12px 14px;background:var(--carte);border:1px solid var(--ligne);border-radius:10px}
+.recit-controles .ctrl-temps{margin-left:0}.recit-periode-libelle{font-size:.76rem;color:var(--encre-2);text-align:right}
+.recit-sommaire{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 4px}
+.recit-sommaire button{padding:7px 12px;border:1px solid var(--ligne);border-radius:99px;
+  background:var(--carte);font-size:.78rem;font-weight:600;color:var(--billet)}
+.recit-sommaire button:hover{border-color:var(--billet);background:#EFF4F0}
+.recit-entete{display:flex;align-items:flex-start!important}
+.recit-numero{display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:50%;
+  background:var(--or-pale);color:#715715;font:700 .76rem var(--f-mono)}
+.recit-entete-txt{display:grid;gap:2px}.recit-entete-txt .note{line-height:1.4}
+.recit-layout{display:grid;grid-template-columns:minmax(260px,.9fr) minmax(360px,1.4fr);gap:26px;align-items:center}
+.recit-texte{font-size:.96rem;line-height:1.72;color:var(--encre-2)}
+.recit-texte p+p{margin-top:12px}.recit-texte strong{color:var(--encre)}
+.recit-phrase-cle{padding:14px 16px;background:#F4F6F3;border-left:3px solid var(--or);
+  border-radius:0 8px 8px 0;color:var(--encre);font-weight:600;margin-top:16px}
+.recit-visuel{position:relative;height:285px;min-width:0}
+.recit-legende{font-size:.72rem;color:var(--encre-2);margin-top:8px;line-height:1.45}
+.recit-stats{margin-top:20px}.recit-stats .stat{background:#F7F9F6}
+.recit-frise{display:grid;gap:0;margin-top:18px;border-left:2px solid var(--ligne);padding-left:20px}
+.recit-jalon{position:relative;padding:3px 0 17px 8px}
+.recit-jalon::before{content:"";position:absolute;left:-27px;top:8px;width:10px;height:10px;
+  border-radius:50%;background:var(--or);box-shadow:0 0 0 4px var(--carte)}
+.recit-jalon time{font:600 .74rem var(--f-mono);color:#715715}
+.recit-jalon b{display:block;margin-top:3px;font-size:.88rem}
+.recit-jalon span{display:block;color:var(--encre-2);font-size:.78rem;margin-top:2px}
+.recit-action{display:inline-flex;padding:0 3px;color:var(--billet);font-weight:700;text-decoration:underline;
+  text-decoration-color:var(--or);text-underline-offset:3px}
+@media (max-width:800px){.recit-layout{grid-template-columns:1fr}.recit-visuel{height:240px}}
+@media (max-width:640px){.recit-hero{padding:23px 20px;min-height:205px}.recit-hero .guill{width:300px;right:-110px}.recit-accroche{font-size:1.02rem}.recit-visuel{height:225px}.recit-controles{align-items:stretch;flex-direction:column}.recit-controles .ctrl-temps{overflow-x:auto}.recit-controles .segments{width:max-content;min-width:100%}.recit-periode-libelle{text-align:left}.recit-sommaire{flex-wrap:nowrap;overflow-x:auto;padding-bottom:3px}.recit-sommaire button{white-space:nowrap}}
+@media (max-width:980px){.filtres-screener{grid-template-columns:repeat(2,minmax(0,1fr))}.filtres-screener input{grid-column:1/-1}}
+@media (max-width:720px){.grille-marche,.grille-score,.glossaire{grid-template-columns:1fr}.filtres-screener{grid-template-columns:1fr}.filtres-screener input{grid-column:auto}#langue{order:2}}
+</style>
+<link rel="stylesheet" href="/shell.css?v=__BVMAC_RELEASE__">
+<script src="/i18n.js?v=__BVMAC_RELEASE__" defer></script>
+<script src="/shell.js?v=__BVMAC_RELEASE__" defer></script>
+<link rel="stylesheet" href="/launch.css?v=__BVMAC_RELEASE__"><script src="/launch.js?v=__BVMAC_RELEASE__" defer></script><meta property="og:title" content="Marché BVMAC — plateforme indépendante"><meta property="og:description" content="Explore les données des BOC, compare les valeurs et découvre les simulations de portefeuille. Initiative personnelle sans affiliation à la BVMAC."><meta property="og:type" content="website"><meta property="og:image" content="__PUBLIC_ORIGIN__/share.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#23493D"><link rel="manifest" href="/manifest.webmanifest?v=__BVMAC_RELEASE__"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=__BVMAC_RELEASE__"><script src="/pwa.js?v=__BVMAC_RELEASE__" defer></script><link rel="stylesheet" href="/experience.css?v=__BVMAC_RELEASE__"><script src="/notification-inbox.js?v=__BVMAC_RELEASE__" defer></script><link rel="stylesheet" href="/instrument-analysis.css?v=__BVMAC_RELEASE__"><script src="/instrument-analysis.js?v=__BVMAC_RELEASE__"></script><link rel="stylesheet" href="/radar.css?v=__BVMAC_RELEASE__"></head>
+<body>
+<div id="app" class="platform-shell">
+
+  <aside id="rail" class="platform-rail">
+    <div id="marque" class="platform-brand">
+      <div class="sigle">BVM<span>AC</span></div>
+      <div class="sous">Plateforme boursière</div>
+    </div>
+    <nav id="nav" class="platform-nav" aria-label="Navigation principale">
+      <button data-vue="accueil" aria-current="true" aria-label="Accueil">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V21h13V10.5"/><path d="M9.5 21v-6h5v6"/></svg>
+        <span class="nav-txt" data-court="Accueil">Accueil</span></button>
+      <button data-vue="apercu" aria-current="false" aria-label="Aperçu du marché">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        <span class="nav-txt" data-court="Aperçu">Aperçu du marché</span></button>
+      <button data-vue="recits" aria-label="Histoires du marché">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v17H7.5A3.5 3.5 0 0 0 4 22z"/><path d="M20 5.5A3.5 3.5 0 0 0 16.5 2H13v17h3.5A3.5 3.5 0 0 1 20 22z"/></svg>
+        <span class="nav-txt" data-court="Récits">Histoires du marché</span></button>
+      <button data-vue="actions" aria-label="Actions">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l5-6 4 3 6-8"/><path d="M21 21H3V3"/></svg>
+        <span class="nav-txt" data-court="Actions">Actions</span></button>
+      <button data-vue="opcvm" aria-label="OPCVM">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg>
+        <span class="nav-txt" data-court="OPCVM">OPCVM</span></button>
+      <button data-vue="indice" aria-label="Indice BVMAC-AS">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+        <span class="nav-txt" data-court="Indice">Indice BVMAC-AS</span></button>
+      <button data-vue="radar" aria-label="Radar prédictif">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 12l5-5"/><circle cx="12" cy="12" r="2"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+        <span class="nav-txt" data-court="Radar">Radar prédictif</span></button>
+      <button data-vue="veille" aria-label="Valeurs suivies">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>
+        <span class="nav-txt" data-court="Suivi">Valeurs suivies</span></button>
+      <button data-vue="donnees" aria-label="Données">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v7c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7"/></svg>
+        <span class="nav-txt" data-court="Données">Données</span></button>
+      <button type="button" data-nav="/app?view=feeds" aria-label="Feeds BVMAC">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4v16"/><path d="M8 6h11l-3 4 3 4H8"/></svg>
+        <span class="nav-txt" data-court="Feeds">Feeds BVMAC</span></button>
+      <button type="button" data-nav="/app?view=analysis" aria-label="Analyse">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V9m5 10V5m5 14v-7m5 7V3"/></svg>
+        <span class="nav-txt" data-court="Analyse">Analyse</span></button>
+      <button type="button" data-nav="/app?view=portfolios" aria-label="Mes portefeuilles">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+        <span class="nav-txt" data-court="Portefeuilles">Mes portefeuilles</span></button>
+    </nav>
+    <div id="tick" hidden>
+      <div class="lbl">BVMAC-AS</div>
+      <div class="val" id="tick-val">—</div>
+      <div class="var" id="tick-var"></div>
+      <div class="tick-spark-wrap"><canvas id="tick-spark" aria-hidden="true"></canvas></div>
+    </div>
+  </aside>
+
+  <div id="main" class="platform-main">
+    <div id="topbar">
+      <div id="seance" hidden>
+        <span class="lbl">Séance</span>
+        <button id="se-prec" aria-label="Séance précédente">‹</button>
+        <select id="se-select" aria-label="Choisir la séance"></select>
+        <button id="se-suiv" aria-label="Séance suivante">›</button>
+      </div>
+      <div id="recherche-g" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="rg-input" type="search" placeholder="Rechercher une action ou un fonds…"
+               role="combobox" aria-expanded="false" aria-controls="resultats-g" autocomplete="off">
+        <div id="resultats-g" role="listbox"></div>
+      </div>
+      <div id="langue" aria-label="Langue de l'interface">
+        <button data-lang="fr" aria-pressed="true">FR</button>
+        <button data-lang="en" aria-pressed="false">EN</button>
+      </div>
+      <div id="etat-fichier">
+        <span class="puce" aria-hidden="true"></span>
+        <span id="etat-texte">Chargement…</span>
+        <button id="btn-actualiser" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+          Actualiser</button>
+      </div>
+    </div>
+
+    <div id="contenu">
+
+      <section id="amorce" style="display:none">
+        <svg class="rosace" viewBox="-110 -110 220 220" aria-hidden="true"></svg>
+        <div id="amorce-corps">
+          <h1>Ouverture de la séance…</h1>
+          <div class="spin" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <section class="vue active" id="vue-accueil">
+        <div class="accueil-hero">
+          <div class="accueil-copy">
+            <span class="accueil-kicker">BVMAC Market</span>
+            <h1>Votre espace marché est prêt.</h1>
+            <p>Accédez aux cotations, aux OPCVM, aux analyses avancées, à vos listes de suivi et à vos portefeuilles simulés depuis un même espace connecté.</p>
+            <div class="accueil-actions">
+              <a class="accueil-btn primaire" href="/app?view=overview">Voir le marché</a>
+              <a class="accueil-btn" href="/app?view=analysis">Analyse avancée</a>
+              <a class="accueil-btn discret" href="/app?view=portfolios">Mes portefeuilles</a>
+            </div>
+          </div>
+          <div class="accueil-panel">
+            <strong>Accès rapide</strong>
+            <div class="accueil-features">
+              <div><b>Marché</b><span>Cours, volumes, indice, OPCVM, screener et données de séance.</span></div>
+              <div><b>Analyse</b><span>Moyennes mobiles, RSI, MACD, saisonnalité, carnets et comparaisons.</span></div>
+              <div><b>Portefeuilles</b><span>Simulation historique, suivi, optimisation et backtests walk-forward.</span></div>
+              <div><b>Suivi</b><span>Valeurs suivies, alertes et screeners sauvegardés liés à votre compte.</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="accueil-grid">
+          <article><span>01</span><h2>Observer la dernière séance</h2><p>Retrouvez les mouvements du marché et naviguez jusqu’aux fiches détaillées des valeurs.</p></article>
+          <article><span>02</span><h2>Analyser dans le temps</h2><p>Passez de la dernière cotation aux horizons semaine, mois, trimestre, année, 5/10 ans ou origine.</p></article>
+          <article><span>03</span><h2>Suivre vos scénarios</h2><p>Conservez vos listes, alertes et portefeuilles simulés pour les retrouver à chaque connexion.</p></article>
+        </div>
+        <p class="accueil-note">Les analyses historiques et optimisations décrivent des données passées et ne constituent pas des recommandations d’investissement.</p>
+      </section>
+
+      <section class="vue" id="vue-apercu">
+        <div id="hero">
+          <svg class="guill" viewBox="-110 -110 220 220" aria-hidden="true"></svg>
+          <div class="col-ind"></div>
+          <div class="graphe"><canvas id="hero-graphe"></canvas></div>
+        </div>
+        <div class="grille-stats" id="stats-seance"></div>
+        <div class="grille-marche">
+          <div class="bloc">
+            <header><h3>Largeur du marché</h3><span class="note">hausse, baisse et stabilité</span></header>
+            <div class="corps plein" id="largeur-marche"></div>
+          </div>
+          <div class="bloc">
+            <header><h3>Valeurs les plus actives</h3><span class="note">par valeur échangée</span></header>
+            <div class="corps" id="plus-actives"></div>
+          </div>
+        </div>
+        <div class="grille-marche">
+          <div class="bloc">
+            <header><h3>Plus fortes hausses</h3><span class="note">séance sélectionnée</span></header>
+            <div class="corps" id="plus-hausses"></div>
+          </div>
+          <div class="bloc">
+            <header><h3>Plus fortes baisses</h3><span class="note">séance sélectionnée</span></header>
+            <div class="corps" id="plus-baisses"></div>
+          </div>
+        </div>
+        <div class="bloc">
+          <header><h3>Carte du marché</h3><span class="note">variation quotidienne</span></header>
+          <div class="carte-chaleur" id="carte-marche"></div>
+        </div>
+        <div class="bloc">
+          <header><h3>Cote des actions</h3><span class="note" id="note-actions"></span></header>
+          <div class="corps"><div id="table-apercu" class="market-table-scroll"></div></div>
+        </div>
+        <div class="bloc">
+          <header><h3>OPCVM — meilleures performances depuis l'origine</h3><span class="note" id="note-opcvm-ap"></span></header>
+          <div class="corps"><div id="opcvm-apercu" class="market-table-scroll"></div></div>
+        </div>
+      </section>
+
+      <section class="vue" id="vue-recits">
+        <h2 class="titre-vue">Histoires du marché</h2>
+        <p class="sous-vue">Les données BVMAC expliquées en quelques chiffres, sans jargon inutile.</p>
+
+        <div class="recit-controles">
+          <div class="ctrl-temps">
+            <span class="ctrl-lbl">Période analysée</span>
+            <div class="segments" id="recit-gran" role="group" aria-label="Période analysée"></div>
+          </div>
+          <div class="recit-periode-libelle" id="recit-periode-libelle"></div>
+        </div>
+
+        <article class="recit-hero" id="recit-hero">
+          <svg class="guill" viewBox="-110 -110 220 220" aria-hidden="true"></svg>
+          <div class="recit-hero-contenu" id="recit-hero-contenu"></div>
+        </article>
+
+        <div class="recit-sommaire" aria-label="Chapitres du récit">
+          <button data-recitancre="recit-seance">01 · La période racontée</button>
+          <button data-recitancre="recit-histoire">02 · Depuis 2019</button>
+          <button data-recitancre="recit-liquidite">03 · La liquidité réelle</button>
+        </div>
+
+        <article class="bloc" id="recit-seance">
+          <header class="recit-entete"><span class="recit-numero">01</span><div class="recit-entete-txt">
+            <h3 id="recit-periode-titre">La période racontée</h3><span class="note" id="recit-periode-note">ce qu’il faut retenir de la période sélectionnée</span>
+          </div></header>
+          <div class="corps plein">
+            <div class="recit-layout">
+              <div class="recit-texte" id="recit-seance-texte"></div>
+              <div><div class="recit-visuel"><canvas id="recit-seance-graphe"></canvas></div>
+                <p class="recit-legende" id="recit-seance-legende"></p></div>
+            </div>
+            <div class="grille-stats recit-stats" id="recit-seance-stats"></div>
+          </div>
+        </article>
+
+        <article class="bloc" id="recit-histoire">
+          <header class="recit-entete"><span class="recit-numero">02</span><div class="recit-entete-txt">
+            <h3>L’histoire de la BVMAC depuis 2019</h3><span class="note">capitalisation, indice et nouvelles admissions</span>
+          </div></header>
+          <div class="corps plein">
+            <div class="recit-layout">
+              <div><div class="recit-texte" id="recit-histoire-texte"></div><div class="recit-frise" id="recit-frise"></div></div>
+              <div><div class="recit-visuel"><canvas id="recit-histoire-graphe"></canvas></div>
+                <p class="recit-legende" id="recit-histoire-legende"></p></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="bloc" id="recit-liquidite">
+          <header class="recit-entete"><span class="recit-numero">03</span><div class="recit-entete-txt">
+            <h3>Le vrai visage de la liquidité</h3><span class="note" id="recit-liquidite-note">activité observée pendant la période sélectionnée</span>
+          </div></header>
+          <div class="corps plein">
+            <div class="recit-layout">
+              <div class="recit-texte" id="recit-liquidite-texte"></div>
+              <div><div class="recit-visuel"><canvas id="recit-liquidite-graphe"></canvas></div>
+                <p class="recit-legende" id="recit-liquidite-legende"></p></div>
+            </div>
+            <div class="grille-stats recit-stats" id="recit-liquidite-stats"></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="vue" id="vue-actions">
+        <div id="actions-liste">
+          <h2 class="titre-vue">Marché des actions</h2>
+          <p class="sous-vue" id="actions-sous"></p>
+          <div class="bloc" style="margin-top:0">
+            <header><h3>Comparaison des valeurs</h3><span class="note">base 100 à la première observation</span>
+              <div class="ctrl-temps">
+                <span class="ctrl-lbl">Échelle</span><div class="segments" id="comp-gran"></div>
+                <span class="ctrl-lbl">Période</span><div class="segments" id="comp-periode"></div>
+              </div></header>
+            <div class="corps plein">
+              <div class="puces" id="comp-puces"></div>
+              <div class="graphe-bloc" style="height:260px;margin-top:16px"><canvas id="comp-graphe"></canvas></div>
+            </div>
+          </div>
+          <div class="bloc"><div class="corps"><div id="table-actions" class="market-table-scroll"></div></div></div>
+          <div class="bloc" id="actions-screener">
+            <header><h3>Screener actions</h3><span class="note">Filtres sur les valeurs cotées</span></header>
+            <div class="filtres-screener">
+              <input id="sc-recherche" type="search" placeholder="Rechercher une valeur…">
+              <select id="sc-secteur"><option value="">Tous secteurs</option></select>
+              <select id="sc-pays"><option value="">Tous pays</option></select>
+              <select id="sc-score"><option value="0">Tout score BVMAC</option><option value="40">Score ≥ 40</option><option value="60">Score ≥ 60</option><option value="75">Score ≥ 75</option></select>
+              <select id="sc-liquidite"><option value="0">Toute liquidité</option><option value="40">Liquidité ≥ 40</option><option value="60">Liquidité ≥ 60</option></select>
+            </div>
+            <div class="corps"><div id="table-screener" class="market-table-scroll"></div></div>
+          </div>
+        </div>
+        <div id="actions-fiche" hidden></div>
+      </section>
+
+      <section class="vue" id="vue-opcvm">
+        <div id="opcvm-liste">
+          <h2 class="titre-vue">OPCVM</h2>
+          <p class="sous-vue" id="opcvm-sous"></p>
+          <div class="filtres">
+            <input id="f-recherche" type="search" placeholder="Filtrer les fonds…">
+            <select id="f-categorie"><option value="">Toutes catégories</option></select>
+            <select id="f-gestionnaire"><option value="">Tous gestionnaires</option></select>
+            <select id="f-frequence"><option value="">Toutes fréquences</option></select>
+          </div>
+          <div class="bloc" style="margin-top:0"><div class="corps"><div id="table-opcvm" class="market-table-scroll"></div></div></div>
+        </div>
+        <div id="opcvm-fiche" hidden></div>
+      </section>
+
+      <section class="vue" id="vue-indice">
+        <h2 class="titre-vue">Indice BVMAC All Share</h2>
+        <p class="sous-vue">Évolution de l'indice composite du marché actions, publié depuis fin 2023.</p>
+        <div class="bloc" style="margin-top:0">
+          <header><h3>Évolution</h3>
+            <div class="ctrl-temps">
+              <span class="ctrl-lbl">Échelle</span><div class="segments" id="indice-gran"></div>
+              <span class="ctrl-lbl">Période</span><div class="segments" id="indice-periode"></div>
+            </div></header>
+          <div class="corps plein"><p id="indice-vide" class="vide" hidden>Aucune valeur d’indice disponible. Le BVMAC-AS est publié dans les bulletins depuis fin 2023.</p><div class="graphe-bloc" id="indice-graphique"><canvas id="indice-graphe"></canvas></div>
+            <div class="graphe-hint" id="indice-aide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M11 8v6M8 11h6"/></svg>Molette ou pincement pour zoomer, glisser pour se déplacer, double-clic pour réinitialiser.</div>
+          </div>
+        </div>
+      </section>
+
+
+      <section class="vue" id="vue-radar">
+        <div id="radar-root"><div class="radar-empty">Chargement du Radar…</div></div>
+      </section>
+
+      <section class="vue" id="vue-veille">
+        <h2 class="titre-vue">Valeurs suivies</h2>
+        <p class="sous-vue">Vos valeurs favorites sont conservées uniquement dans ce navigateur.</p>
+        <div class="bloc" style="margin-top:0"><div class="corps" id="table-veille" class="market-table-scroll"></div></div>
+      </section>
+
+      <!-- publication_grace_days: suivi opérationnel déplacé dans /stat -->
+      <section class="vue" id="vue-donnees">
+        <h2 class="titre-vue">Données, sources & lexique</h2>
+        <p class="sous-vue">Comprendre d’où viennent les chiffres et comment sont calculés les indicateurs affichés sur BVMAC Market.</p>
+
+        <div class="bloc" style="margin-top:0">
+          <header><h3>Sources utilisées</h3><span class="note">provenance des données</span></header>
+          <div class="corps plein">
+            <dl class="glossaire">
+              <div><dt>Bulletins officiels BVMAC</dt><dd>Cours, volumes, valeurs échangées, nombre de transactions, indices, capitalisations et informations de séance publiées par la BVMAC.</dd></div>
+              <div><dt>États financiers publiés</dt><dd>Chiffre d’affaires, résultat net, capitaux propres, total bilan, valeur ajoutée, dividendes et autres données fondamentales lorsqu’elles sont disponibles dans les documents sources.</dd></div>
+              <div><dt>Publications OPCVM</dt><dd>Valeurs liquidatives, dates de valorisation et informations descriptives des fonds disponibles dans les sources consolidées.</dd></div>
+              <div><dt>Classeur maître</dt><dd>Les sources sont consolidées dans le classeur maître BVMAC. L’interface restitue les valeurs importées ; elle ne remplace pas les publications officielles.</dd></div>
+            </dl>
+            <div class="explication" style="margin-top:14px">Une donnée absente reste affichée comme indisponible : l’interface n’invente pas de valeur pour compléter une publication manquante.</div>
+          </div>
+        </div>
+
+        <div class="bloc">
+          <header><h3>Calculs & ratios</h3><span class="note">formules utilisées dans l’interface</span></header>
+          <div class="corps plein"><dl class="glossaire">
+            <div><dt>Performance</dt><dd>(Cours final / cours initial − 1) × 100.</dd></div>
+            <div><dt>Rendement brut</dt><dd>Dividende brut par action / cours de l’action × 100.</dd></div>
+            <div><dt>PER</dt><dd>Cours de l’action / bénéfice par action (BPA). Un PER non positif n’est pas utilisé dans le score de valorisation.</dd></div>
+            <div><dt>ROE</dt><dd>Résultat net / capitaux propres × 100, sauf lorsqu’un ROE publié est directement disponible.</dd></div>
+            <div><dt>ROA</dt><dd>Résultat net / total bilan × 100.</dd></div>
+            <div><dt>Marge nette</dt><dd>Résultat net / chiffre d’affaires × 100.</dd></div>
+            <div><dt>Autonomie financière</dt><dd>Capitaux propres / total bilan × 100.</dd></div>
+            <div><dt>Croissance annuelle</dt><dd>(Valeur de l’exercice / valeur de l’exercice précédent − 1) × 100.</dd></div>
+            <div><dt>Volatilité annualisée</dt><dd>Écart-type des rendements observés sur la fenêtre récente × √252.</dd></div>
+            <div><dt>Drawdown maximal</dt><dd>Plus forte baisse observée entre un sommet historique précédent et un cours ultérieur.</dd></div>
+            <div><dt>Fréquence de cotation</dt><dd>Part des 60 dernières séances où un volume ou une valeur échangée est déclaré.</dd></div>
+            <div><dt>Performance annualisée OPCVM</dt><dd>(VL actuelle / valeur initiale)^(365 / nombre de jours) − 1, pour un historique d’au moins 30 jours.</dd></div>
+          </dl></div>
+        </div>
+
+        <div class="bloc">
+          <header><h3>Score BVMAC</h3><span class="note">comparaison relative, pas une recommandation</span></header>
+          <div class="corps plein">
+            <div class="explication">Chaque composante est calculée relativement aux autres valeurs disponibles, à partir de percentiles. Le score final combine : liquidité 25 %, rentabilité 20 %, performance 20 %, valorisation 20 % et risque 15 %. <strong>Un score n’est publié que si toutes les données nécessaires aux cinq composantes sont présentes et comparables.</strong> Une donnée requise absente entraîne l’affichage « N/D » : aucune valeur neutre n’est inventée.</div>
+            <dl class="glossaire" style="margin-top:14px">
+              <div><dt>Liquidité · 25 %</dt><dd>Fréquence de cotation et valeur moyenne échangée.</dd></div>
+              <div><dt>Rentabilité · 20 %</dt><dd>ROE et marge nette.</dd></div>
+              <div><dt>Performance · 20 %</dt><dd>Performances sur 6 mois et 1 an.</dd></div>
+              <div><dt>Valorisation · 20 %</dt><dd>PER, avec classement inversé, et rendement brut.</dd></div>
+              <div><dt>Risque · 15 %</dt><dd>Volatilité et drawdown, avec classement inversé.</dd></div>
+            </dl>
+          </div>
+        </div>
+
+        <div class="bloc">
+          <header><h3>Lexique</h3></header>
+          <div class="corps plein"><dl class="glossaire">
+            <div><dt>BPA / EPS</dt><dd>Bénéfice par action.</dd></div>
+            <div><dt>Capitalisation</dt><dd>Cours multiplié par le nombre d’actions concernées ; elle peut être globale ou limitée au flottant.</dd></div>
+            <div><dt>Flottant</dt><dd>Part des titres considérée comme effectivement disponible à l’échange sur le marché.</dd></div>
+            <div><dt>Liquidité</dt><dd>Mesure de l’activité réellement observée : fréquence des échanges et montants échangés.</dd></div>
+            <div><dt>Valeur liquidative (VL)</dt><dd>Valeur d’une part d’OPCVM à une date de valorisation donnée.</dd></div>
+            <div><dt>Volatilité</dt><dd>Dispersion des variations de cours ; elle décrit l’amplitude des mouvements observés.</dd></div>
+            <div><dt>Drawdown</dt><dd>Baisse depuis un précédent plus haut jusqu’au creux observé ensuite.</dd></div>
+            <div><dt>Percentile</dt><dd>Position relative d’une valeur par rapport aux autres observations disponibles.</dd></div>
+          </dl></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script src="/radar-app.js?v=__BVMAC_RELEASE__"></script><script src="/index-app.js?v=__BVMAC_RELEASE__"></script><script src="/analytics.js?v=__BVMAC_RELEASE__"></script>
+</body>
+</html>

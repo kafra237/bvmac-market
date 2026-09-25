@@ -1,0 +1,2 @@
+.tiny-footer{gap:8px 14px;margin-top:14px;padding-top:12px;color:#66736b;font-size:.72rem;line-height:1.5}
+@media(max-width:520px){.tiny-footer{font-size:.68rem;gap:9px 12px}.tiny-footer a{min-height:32px;display:inline-flex;align-items:center}}
